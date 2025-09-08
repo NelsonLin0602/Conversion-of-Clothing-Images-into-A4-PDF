@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>圖片轉PDF - 每頁6張A4排版</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 40px;
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .upload-section {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 60px 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .upload-section:hover {
+            border-color: #764ba2;
+            background: rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .upload-section.dragover {
+            border-color: #764ba2;
+            background: rgba(102, 126, 234, 0.15);
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 4em;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 1.3em;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .preview-section {
+            margin-top: 30px;
+        }
+
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .preview-item {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .preview-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .preview-item img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+        }
+
+        .preview-item .remove-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(255, 0, 0, 0.8);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .preview-item .remove-btn:hover {
+            background: rgba(255, 0, 0, 1);
+            transform: scale(1.1);
+        }
+
+        .preview-item .index {
+            position: absolute;
+            bottom: 5px;
+            left: 5px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 12px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(102, 126, 234, 0.2);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .status {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 1.1em;
+            color: #666;
+        }
+
+        .settings {
+            background: rgba(102, 126, 234, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .settings h3 {
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .setting-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .setting-item label {
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 5px;
+        }
+
+        .setting-item input {
+            padding: 8px 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .setting-item input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .upload-section {
+                padding: 40px 20px;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📄 圖片轉PDF工具</h1>
+        
+        <div class="settings">
+            <h3>⚙️ PDF設定</h3>
+            <div class="settings-grid">
+                <div class="setting-item">
+                    <label>DPI解析度:</label>
+                    <input type="number" id="dpiSetting" value="300" min="72" max="600">
+                </div>
+                <div class="setting-item">
+                    <label>上邊界 (px):</label>
+                    <input type="number" id="marginTop" value="150" min="0">
+                </div>
+                <div class="setting-item">
+                    <label>下邊界 (px):</label>
+                    <input type="number" id="marginBottom" value="150" min="0">
+                </div>
+                <div class="setting-item">
+                    <label>左邊界 (px):</label>
+                    <input type="number" id="marginLeft" value="100" min="0">
+                </div>
+                <div class="setting-item">
+                    <label>右邊界 (px):</label>
+                    <input type="number" id="marginRight" value="100" min="0">
+                </div>
+                <div class="setting-item">
+                    <label>水平間距 (px):</label>
+                    <input type="number" id="hSpacing" value="50" min="0">
+                </div>
+                <div class="setting-item">
+                    <label>垂直間距 (px):</label>
+                    <input type="number" id="vSpacing" value="200" min="0">
+                </div>
+            </div>
+        </div>
+
+        <div class="upload-section" id="uploadSection">
+            <div class="upload-icon">📤</div>
+            <div class="upload-text">拖曳圖片到此處或點擊選擇檔案</div>
+            <button class="btn" onclick="document.getElementById('fileInput').click()">選擇圖片</button>
+            <input type="file" id="fileInput" accept="image/*" multiple>
+        </div>
+
+        <div class="controls">
+            <button class="btn" id="clearBtn" onclick="clearImages()">清除所有圖片</button>
+            <button class="btn" id="generateBtn" onclick="generatePDF()" disabled>生成PDF</button>
+        </div>
+
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <div class="status" id="status"></div>
+
+        <div class="preview-section">
+            <div class="preview-grid" id="previewGrid"></div>
+        </div>
+    </div>
+
+    <script>
+        let images = [];
+
+        // 預設設定值
+        const PDF_SETTINGS = {
+            dpi: 300,
+            marginTop: 150,
+            marginBottom: 150,
+            marginLeft: 100,
+            marginRight: 100,
+            hSpacing: 50,
+            vSpacing: 200
+        };
+
+        // 文件輸入事件
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            handleFiles(e.target.files);
+        });
+
+        // 拖放功能
+        const uploadSection = document.getElementById('uploadSection');
+        
+        uploadSection.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            uploadSection.classList.add('dragover');
+        });
+
+        uploadSection.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+        });
+
+        uploadSection.addEventListener('drop', function(e) {
+            e.preventDefault();
+            uploadSection.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+
+        function handleFiles(files) {
+            const fileArray = Array.from(files);
+            let loadedCount = 0;
+            
+            updateStatus(`正在載入 ${fileArray.length} 張圖片...`);
+            
+            fileArray.forEach((file, index) => {
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const img = new Image();
+                        img.onload = function() {
+                            images.push({
+                                src: e.target.result,
+                                name: file.name,
+                                width: img.width,
+                                height: img.height
+                            });
+                            
+                            loadedCount++;
+                            if (loadedCount === fileArray.length) {
+                                updatePreview();
+                                updateStatus(`已載入 ${images.length} 張圖片`);
+                                updateButtons();
+                            }
+                        };
+                        img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        function updateButtons() {
+            const hasImages = images.length > 0;
+            document.getElementById('generateBtn').disabled = !hasImages;
+            document.getElementById('previewBtn').disabled = !hasImages;
+        }
+
+        function updatePreview() {
+            const grid = document.getElementById('previewGrid');
+            grid.innerHTML = '';
+            
+            images.forEach((image, index) => {
+                const item = document.createElement('div');
+                item.className = 'preview-item';
+                item.innerHTML = `
+                    <img src="${image.src}" alt="${image.name}">
+                    <button class="remove-btn" onclick="removeImage(${index})">×</button>
+                    <div class="index">${index + 1}</div>
+                `;
+                grid.appendChild(item);
+            });
+        }
+
+        function removeImage(index) {
+            images.splice(index, 1);
+            updatePreview();
+            updateStatus(`已刪除圖片，剩餘 ${images.length} 張`);
+            updateButtons();
+        }
+
+        function clearImages() {
+            images = [];
+            updatePreview();
+            hidePDFPreview();
+            updateStatus('已清除所有圖片');
+            updateButtons();
+        }
+
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
+        }
+
+        function showProgress(show = true) {
+            const progressBar = document.getElementById('progressBar');
+            progressBar.style.display = show ? 'block' : 'none';
+        }
+
+        function updateProgress(percent) {
+            const fill = document.getElementById('progressFill');
+            fill.style.width = percent + '%';
+        }
+
+        async function showPreview() {
+            if (images.length === 0) return;
+
+            const previewBtn = document.getElementById('previewBtn');
+            previewBtn.disabled = true;
+            showProgress(true);
+            updateProgress(0);
+
+            try {
+                updateStatus('正在生成預覽...');
+                
+                const previewPages = await generatePreviewPages();
+                
+                document.getElementById('pdfPreview').style.display = 'block';
+                const container = document.getElementById('pdfPreviewPages');
+                container.innerHTML = '';
+                
+                previewPages.forEach((pageData, index) => {
+                    const pageDiv = document.createElement('div');
+                    pageDiv.className = 'pdf-preview-page';
+                    
+                    const pageNumber = document.createElement('div');
+                    pageNumber.className = 'page-number';
+                    pageNumber.textContent = `第 ${index + 1} 頁`;
+                    
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = pageData.width;
+                    canvas.height = pageData.height;
+                    ctx.putImageData(pageData.imageData, 0, 0);
+                    
+                    pageDiv.appendChild(pageNumber);
+                    pageDiv.appendChild(canvas);
+                    container.appendChild(pageDiv);
+                });
+
+                updateStatus(`✅ 預覽生成完成！共 ${previewPages.length} 頁，${images.length} 張圖片`);
+                
+                // 滾動到預覽區域
+                document.getElementById('pdfPreview').scrollIntoView({ behavior: 'smooth' });
+
+            } catch (error) {
+                console.error('生成預覽時發生錯誤:', error);
+                updateStatus('❌ 預覽生成失敗，請重試');
+            } finally {
+                previewBtn.disabled = false;
+                showProgress(false);
+            }
+        }
+
+        function hidePDFPreview() {
+            document.getElementById('pdfPreview').style.display = 'none';
+        }
+
+        async function generatePreviewPages() {
+            const { dpi, marginTop, marginBottom, marginLeft, marginRight, hSpacing, vSpacing } = PDF_SETTINGS;
+            
+            // A4尺寸計算
+            const a4WidthPx = Math.round(210 / 25.4 * dpi);
+            const a4HeightPx = Math.round(297 / 25.4 * dpi);
+            
+            // 可用空間計算
+            const usableWidth = a4WidthPx - marginLeft - marginRight - 2 * hSpacing;
+            const usableHeight = a4HeightPx - marginTop - marginBottom - vSpacing;
+            
+            const cellW = Math.floor(usableWidth / 3);
+            const cellH = Math.floor(usableHeight / 2);
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = a4WidthPx;
+            canvas.height = a4HeightPx;
+
+            const totalPages = Math.ceil(images.length / 6);
+            const previewPages = [];
+
+            for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
+                updateProgress((pageIndex / totalPages) * 100);
+                updateStatus(`正在生成第 ${pageIndex + 1} 頁預覽...`);
+
+                // 清空畫布
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                const startIndex = pageIndex * 6;
+                const pageImages = images.slice(startIndex, startIndex + 6);
+
+                // 計算位置
+                const positions = [];
+                // 上排
+                const y1 = marginTop;
+                for (let i = 0; i < 3; i++) {
+                    const x = marginLeft + i * (cellW + hSpacing);
+                    positions.push({ x, y: y1 });
+                }
+                // 下排
+                const y2 = marginTop + cellH + vSpacing;
+                for (let i = 0; i < 3; i++) {
+                    const x = marginLeft + i * (cellW + hSpacing);
+                    positions.push({ x, y: y2 });
+                }
+
+                // 等待所有圖片載入並繪製
+                for (let i = 0; i < pageImages.length; i++) {
+                    const imageData = pageImages[i];
+                    const position = positions[i];
+
+                    await new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = function() {
+                            // 等比例縮放
+                            const scale = Math.min(cellW / img.width, cellH / img.height);
+                            const scaledW = img.width * scale;
+                            const scaledH = img.height * scale;
+                            
+                            ctx.drawImage(img, position.x, position.y, scaledW, scaledH);
+                            resolve();
+                        };
+                        img.src = imageData.src;
+                    });
+                }
+
+                // 保存頁面數據
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                previewPages.push({
+                    imageData,
+                    width: canvas.width,
+                    height: canvas.height
+                });
+
+                // 小延遲避免阻塞UI
+                await new Promise(resolve => setTimeout(resolve, 10));
+            }
+
+            return previewPages;
+        }
+
+        async function generatePDF() {
+            if (images.length === 0) return;
+
+            const generateBtn = document.getElementById('generateBtn');
+            generateBtn.disabled = true;
+            showProgress(true);
+            updateProgress(0);
+
+            try {
+                const { dpi, marginTop, marginBottom, marginLeft, marginRight, hSpacing, vSpacing } = PDF_SETTINGS;
+
+                // A4尺寸計算
+                const a4WidthPx = Math.round(210 / 25.4 * dpi);
+                const a4HeightPx = Math.round(297 / 25.4 * dpi);
+                
+                // 可用空間計算
+                const usableWidth = a4WidthPx - marginLeft - marginRight - 2 * hSpacing;
+                const usableHeight = a4HeightPx - marginTop - marginBottom - vSpacing;
+                
+                const cellW = Math.floor(usableWidth / 3);
+                const cellH = Math.floor(usableHeight / 2);
+
+                updateStatus('正在生成PDF...');
+
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = a4WidthPx;
+                canvas.height = a4HeightPx;
+
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+
+                const totalPages = Math.ceil(images.length / 6);
+                let isFirstPage = true;
+
+                for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
+                    updateProgress((pageIndex / totalPages) * 100);
+                    updateStatus(`正在處理第 ${pageIndex + 1} 頁，共 ${totalPages} 頁...`);
+
+                    if (!isFirstPage) {
+                        pdf.addPage();
+                    }
+                    isFirstPage = false;
+
+                    // 清空畫布
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    const startIndex = pageIndex * 6;
+                    const pageImages = images.slice(startIndex, startIndex + 6);
+
+                    // 計算位置
+                    const positions = [];
+                    // 上排
+                    const y1 = marginTop;
+                    for (let i = 0; i < 3; i++) {
+                        const x = marginLeft + i * (cellW + hSpacing);
+                        positions.push({ x, y: y1 });
+                    }
+                    // 下排
+                    const y2 = marginTop + cellH + vSpacing;
+                    for (let i = 0; i < 3; i++) {
+                        const x = marginLeft + i * (cellW + hSpacing);
+                        positions.push({ x, y: y2 });
+                    }
+
+                    // 等待所有圖片載入並繪製
+                    for (let i = 0; i < pageImages.length; i++) {
+                        const imageData = pageImages[i];
+                        const position = positions[i];
+
+                        await new Promise((resolve) => {
+                            const img = new Image();
+                            img.onload = function() {
+                                // 等比例縮放
+                                const scale = Math.min(cellW / img.width, cellH / img.height);
+                                const scaledW = img.width * scale;
+                                const scaledH = img.height * scale;
+                                
+                                ctx.drawImage(img, position.x, position.y, scaledW, scaledH);
+                                resolve();
+                            };
+                            img.src = imageData.src;
+                        });
+                    }
+
+                    // 將畫布轉換為圖片並添加到PDF
+                    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                    pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+
+                    // 小延遲避免阻塞UI
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                }
+
+                updateProgress(100);
+                updateStatus('PDF生成完成，正在下載...');
+
+                // 下載PDF
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+                pdf.save(`服飾圖片_${timestamp}.pdf`);
+
+                updateStatus(`✅ PDF生成完成！共 ${totalPages} 頁，${images.length} 張圖片`);
+
+            } catch (error) {
+                console.error('生成PDF時發生錯誤:', error);
+                updateStatus('❌ PDF生成失敗，請重試');
+            } finally {
+                generateBtn.disabled = false;
+                showProgress(false);
+            }
+        }
+
+        // 初始化
+        updateStatus('請上傳服飾圖片開始使用');PDF生成完成，正在下載...');
+
+                // 下載PDF
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+                pdf.save(`服飾圖片_${timestamp}.pdf`);
+
+                updateStatus(`✅ PDF生成完成！共 ${totalPages} 頁，${images.length} 張圖片`);
+
+            } catch (error) {
+                console.error('生成PDF時發生錯誤:', error);
+                updateStatus('❌ PDF生成失敗，請重試');
+            } finally {
+                generateBtn.disabled = false;
+                showProgress(false);
+            }
+        }
+
+        // 初始化
+        updateStatus('請上傳服飾圖片開始使用');
+    </script>PDF生成完成，正在下載...');
+
+                // 下載PDF
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+                pdf.save(`images_${timestamp}.pdf`);
+
+                updateStatus(`✅ PDF生成完成！共 ${totalPages} 頁，${images.length} 張圖片`);
+
+            } catch (error) {
+                console.error('生成PDF時發生錯誤:', error);
+                updateStatus('❌ PDF生成失敗，請重試');
+            } finally {
+                generateBtn.disabled = false;
+                showProgress(false);
+            }
+        }
+
+        // 初始化
+        updateStatus('請上傳圖片開始使用');
+    </script>
+</body>
+</html>
